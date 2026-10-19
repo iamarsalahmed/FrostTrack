@@ -1,3 +1,12 @@
+## Manager login now uses Neon (updated)
+
+See **`DB_LOGIN_SETUP_Roman_Urdu.md`** for the exact migration and one-time user creation steps.
+
+- Run `sql/manager_auth_migration.sql` on your existing Neon production database.
+- Add `DATABASE_URL` to local `.env.local`, then run `npm run manager:create` to create/reset a manager account without storing a plain-text password.
+- Login requires **email + password**. Old password-only cookies are invalidated.
+- In Vercel only `DATABASE_URL`, `SESSION_SECRET` and `DEVICE_API_KEY` remain; `MANAGER_PASSWORD` is no longer used.
+
 # FrostTrack | Next.js + Vercel + Neon PostgreSQL
 
 Full-stack live classroom-demo application for **Arduino Mega 2560 Smart Meat Refrigerator**.
@@ -27,16 +36,17 @@ Dashboard "Simulate reading" → POST /api/demo/update → SAME PostgreSQL → d
 ## Fast Vercel deployment (single project for frontend + backend)
 
 1. Create a free PostgreSQL database at **https://neon.tech** (or Vercel Marketplace → Neon). Choose a region near your app's function region.
-2. Neon Console → **SQL Editor** → paste and run **`sql/schema.sql`**. This creates the four compartments, alerts, readings and orders tables and starter records.
+2. Neon Console → **SQL Editor** → paste and run **`sql/schema.sql`**. This creates the four compartments, alerts, readings, orders and managers tables and starter records. If the first four tables already exist, only run `sql/manager_auth_migration.sql`.
 3. Copy the **pooled `DATABASE_URL`** from Neon Console → **Connect**. It will look like `postgresql://...-pooler.../neondb?sslmode=require`.
 4. Upload this folder to a new **GitHub repository** (do **not** commit `.env.local`), then open **https://vercel.com/new** → Import Git Repository.
 5. Framework: **Next.js** (auto-detected). Root Directory: project root. Build Command: `npm run build`. No separate backend deployment needed.
-6. Under Vercel **Project Settings → Environment Variables**, add these for **Production**:
+6. Run `sql/manager_auth_migration.sql` on the existing Neon production branch.
+7. Run `npm run manager:create` locally (with `.env.local` set) to create your manager email/password securely in the database.
+8. Under Vercel **Project Settings → Environment Variables**, add these for **Production**:
    - `DATABASE_URL` = pooled Neon connection string
-   - `MANAGER_PASSWORD` = an original password of **12+ characters**
    - `SESSION_SECRET` = random **32+ characters**, e.g. run `openssl rand -hex 32`
    - `DEVICE_API_KEY` = a *different* random **20+ characters**, e.g. `openssl rand -hex 32`
-7. Deploy. Open the generated `https://...vercel.app` URL. Sign in with `MANAGER_PASSWORD`.
+9. Deploy. Open the generated `https://...vercel.app` URL. Sign in with the manager email and password created in step 7.
 8. Try **Simulate reading → Keema weight 2 kg → Send reading → Approve order**. Go to Purchase Orders to see the approved order saved in Neon.
 
 **Deployment result:** The dashboard is hosted on `https://YOUR-PROJECT.vercel.app` and the backend is already at `https://YOUR-PROJECT.vercel.app/api/*`. Neon PostgreSQL is not hosted inside Vercel itself.
@@ -50,7 +60,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000` and login using `MANAGER_PASSWORD`.
+Open `http://localhost:3000` and login using your Neon manager email and password.
 
 > DO NOT open the app with plain HTML file mode; this is a Next.js server + database app. `npm install` needs working internet access for dependencies.
 
@@ -68,7 +78,7 @@ Open `http://localhost:3000` and login using `MANAGER_PASSWORD`.
 
 | Endpoint | Method | Access | Purpose |
 |---|---|---|---|
-| `/api/auth/login` | POST | Password | Sign in; sets signed HTTP-only cookie |
+| `/api/auth/login` | POST | Manager email + password | Sign in; sets signed HTTP-only cookie |
 | `/api/auth/logout` | POST | Browser | Sign out |
 | `/api/auth/me` | GET | Browser | Check active session |
 | `/api/dashboard` | GET | Manager session | Get compartments, alerts, orders, history |
@@ -123,7 +133,7 @@ Configure Arduino `gatewayHost` to the host's **LAN IP** (e.g. `192.168.1.20`), 
 
 ## Security and scope
 
-- Manager actions: password, HMAC-signed, HTTP-only, SameSite=Strict session cookies.
+- Manager actions: scrypt-hashed credentials in Neon, HMAC-signed HTTP-only SameSite=Strict session cookies.
 - Device ingestion: `x-device-key` secret on the **HTTPS** Vercel endpoint, kept in gateway environment only.
 - Input validation, constrained supported compartments, parameterized SQL and database unique indexes prevent accidental duplicate pending purchase orders and alerts.
 - Neon connection string is **server-only**; never use `NEXT_PUBLIC_DATABASE_URL`.

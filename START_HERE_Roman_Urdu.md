@@ -1,3 +1,5 @@
+**UPDATED AUTH:** Manager password Vercel env mein nahi. Pehle `DB_LOGIN_SETUP_Roman_Urdu.md` follow karo, phir deployment.
+
 # FrostTrack – Live Demo Setup (Roman Urdu)
 
 Jani, is project mein **Next.js frontend aur backend dono ek hi Vercel deployment mein** chalenge. Database **Neon PostgreSQL** par hoga.
@@ -11,15 +13,15 @@ Jani, is project mein **Next.js frontend aur backend dono ek hi Vercel deploymen
 1. Is folder ko GitHub repository mein upload karo. Secret wali `.env.local` file kabhi GitHub par upload mat karna.
 2. `https://vercel.com/new` par Import GitHub Repo karo.
 3. **Next.js** framework auto-select hoga.
-4. Vercel → Project Settings → Environment Variables mein 4 variables set karo:
+4. Vercel → Project Settings → Environment Variables mein 3 variables set karo:
    - `DATABASE_URL` → Neon ki Postgres connection string.
-   - `MANAGER_PASSWORD` → apna 12+ characters ka strong password.
+   - Manager ka email/password Neon mein `managers` table se validate hota hai; `npm run manager:create` use karo.
    - `SESSION_SECRET` → 32+ characters ki random secret (e.g. `openssl rand -hex 32`).
    - `DEVICE_API_KEY` → doosri random key 20+ characters, Arduino/gateway ke liye.
 5. Deploy button dabao. Tumhe `https://project-name.vercel.app` ka link mil jayega.
 
 ## Step 3: Professor ko live demo
-1. Vercel wali website open karo aur manager password se login karo.
+1. Vercel wali website open karo aur manager email aur password se login karo.
 2. Chicken, Beef, Mutton aur Keema ke live-style stock aur temperature cards show karo.
 3. Keema mein **Simulate reading** par click karo → Weight **2 kg** / Temp **2.5°C** → Send.
 4. Backend API se same data Neon PostgreSQL mein save hoga. Dashboard har **5 seconds** refresh hota hai.
