@@ -1,3 +1,13 @@
+## New: Order cancellation + refreshed alert UI
+
+The updated frontend adds prominent color-coded **low stock** (rose/red) and **high temperature** (amber) alerts, clearer inventory health indicators, and purchase-order status filters (**All / Placed / Received / Cancelled**). Managers can cancel a `placed` order with a confirmation and optional reason. Cancelled orders remain visible with their timestamps; they cannot be marked received, and they do not change measured inventory. Cancelling releases the active-order constraint so a new order can be placed if stock remains low.
+
+**Existing Neon databases:** Run `sql/order_cancellation_migration.sql` in Neon **production / neondb** BEFORE pushing/redeploying the new app. The migration keeps all existing records. Full Roman Urdu instructions: `ORDER_CANCELLATION_SETUP_Roman_Urdu.md`.
+
+**New endpoint** `POST /api/orders/:id/cancel` — authenticated manager, optional `{ "reason": "..." }`, max 240 chars, atomically changes only `placed` → `cancelled`, or returns HTTP 409.
+
+**Important:** This archive is an updated source version, not an automatic change to your live GitHub/Vercel/Neon accounts.
+
 ## Manager login now uses Neon (updated)
 
 See **`DB_LOGIN_SETUP_Roman_Urdu.md`** for the exact migration and one-time user creation steps.
@@ -86,6 +96,7 @@ Open `http://localhost:3000` and login using your Neon manager email and passwor
 | `/api/telemetry` | POST | `x-device-key` header | Arduino/gateway data ingest |
 | `/api/orders` | POST | Manager session | Approve and create purchase order |
 | `/api/orders/:id/received` | POST | Manager session | Mark delivery received |
+| `/api/orders/:id/cancel` | POST | Manager session | Cancel a placed order; optional reason |
 
 Example telemetry request (run in a terminal; avoid storing real secrets in shell history):
 

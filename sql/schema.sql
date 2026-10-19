@@ -34,9 +34,11 @@ CREATE TABLE IF NOT EXISTS orders (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   compartment_code TEXT NOT NULL REFERENCES compartments(code),
   quantity_kg NUMERIC(8,2) NOT NULL CHECK (quantity_kg > 0),
-  status TEXT NOT NULL CHECK (status IN ('placed','received')) DEFAULT 'placed',
+  status TEXT NOT NULL CHECK (status IN ('placed','received','cancelled')) DEFAULT 'placed',
   approved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  received_at TIMESTAMPTZ
+  received_at TIMESTAMPTZ,
+  cancelled_at TIMESTAMPTZ,
+  cancellation_reason TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unreceived_order_unique
   ON orders(compartment_code) WHERE status='placed';
@@ -65,3 +67,6 @@ CREATE TABLE IF NOT EXISTS managers (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Existing Neon orders tables created before cancellation support must also run
+-- sql/order_cancellation_migration.sql (safe, does not remove records).

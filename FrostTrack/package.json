@@ -1,0 +1,24 @@
+{
+  "name": "frosttrack-iot-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test tests/*.test.mjs",
+    "manager:create": "node --env-file=.env.local scripts/create-manager.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@reduxjs/toolkit": "^2.5.0",
+    "next": "^15.5.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-redux": "^9.2.0"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "type": "module"
+}
