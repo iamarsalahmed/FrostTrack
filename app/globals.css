@@ -85,3 +85,8 @@
 .action-completed{color:#b1b9c4}
 @media(max-width:660px){.alert-overview{align-items:flex-start;flex-wrap:wrap}.alert-overview>.btn{margin-left:52px}.alert-row{flex-wrap:wrap}.alert-row small{margin-left:51px}.order-actions{min-width:215px}.orders-panel{padding:14px}.orders-panel-head{flex-wrap:wrap}.cancel-summary{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){.comp-card,.metric{transition:none}}
+
+/* Acknowledged low-stock compartments still show their measured weight,
+   but they no longer display a new-action warning while a PO is placed. */
+.comp-card.comp-pending { border-color:#c2d6fa; }
+.card-attention.ordered { background:#edf4ff; color:#24477b; }

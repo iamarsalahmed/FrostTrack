@@ -1,155 +1,94 @@
-## New: Order cancellation + refreshed alert UI
+# FrostTrack — Arduino IoT Refrigerator Monitoring
 
-The updated frontend adds prominent color-coded **low stock** (rose/red) and **high temperature** (amber) alerts, clearer inventory health indicators, and purchase-order status filters (**All / Placed / Received / Cancelled**). Managers can cancel a `placed` order with a confirmation and optional reason. Cancelled orders remain visible with their timestamps; they cannot be marked received, and they do not change measured inventory. Cancelling releases the active-order constraint so a new order can be placed if stock remains low.
+**Frontend + backend:** Next.js on Vercel  
+**Database:** Neon PostgreSQL (separate service)  
+**IoT side:** Arduino Mega 2560, four HX711 load-cell modules, four DS18B20 sensors, W5500 Ethernet, optional local HTTPS-forwarding gateway.
 
-**Existing Neon databases:** Run `sql/order_cancellation_migration.sql` in Neon **production / neondb** BEFORE pushing/redeploying the new app. The migration keeps all existing records. Full Roman Urdu instructions: `ORDER_CANCELLATION_SETUP_Roman_Urdu.md`.
+This is the cleaned project source. No demo HTML preview or old duplicate setup guides are included. All application code, Arduino firmware, database schema/migrations, gateway and tests are retained.
 
-**New endpoint** `POST /api/orders/:id/cancel` — authenticated manager, optional `{ "reason": "..." }`, max 240 chars, atomically changes only `placed` → `cancelled`, or returns HTTP 409.
+## Features
 
-**Important:** This archive is an updated source version, not an automatic change to your live GitHub/Vercel/Neon accounts.
+- Manager login using accounts and password hashes stored in PostgreSQL.
+- Monitor Chicken, Beef, Mutton and Keema weight/temperature.
+- Color-coded stock and temperature alerts; demo sensor reading controls.
+- Reorder quantity = maximum compartment capacity − current weight.
+- Approve, cancel, or mark placed orders received; retain order history.
+- **After approving an order:** acknowledge that compartment's low-stock alert and don't recreate it while a `placed` order exists. If the order is cancelled while stock is still low, an alert may reopen. Temperature alerts are independent.
 
-## Manager login now uses Neon (updated)
+## One-time setup
 
-See **`DB_LOGIN_SETUP_Roman_Urdu.md`** for the exact migration and one-time user creation steps.
+1. Run `npm install` from the project root.
+2. Create a **Neon PostgreSQL** database. In Neon SQL Editor, run `sql/schema.sql` **for a new database**.
+   - If your Neon DB already contains FrostTrack tables, do **not** reset it. Apply only the needed migrations:
+     - `sql/manager_auth_migration.sql` for the `managers` table;
+     - `sql/order_cancellation_migration.sql` for older `orders` tables lacking cancellation fields.
+     - `sql/resolve_existing_order_alerts.sql` **once** if you already have `placed` orders and old low-stock alerts are still open.
+   - In particular, the existing Neon production database with cancellation fields already added needs **no repeated cancellation migration**.
+3. Copy `.env.example` to `.env.local` (never commit it) and set:
 
-- Run `sql/manager_auth_migration.sql` on your existing Neon production database.
-- Add `DATABASE_URL` to local `.env.local`, then run `npm run manager:create` to create/reset a manager account without storing a plain-text password.
-- Login requires **email + password**. Old password-only cookies are invalidated.
-- In Vercel only `DATABASE_URL`, `SESSION_SECRET` and `DEVICE_API_KEY` remain; `MANAGER_PASSWORD` is no longer used.
+```env
+DATABASE_URL=postgresql://YOUR_NEON_CONNECTION_URL
+SESSION_SECRET=YOUR_RANDOM_32_PLUS_CHARACTER_SECRET
+DEVICE_API_KEY=YOUR_DIFFERENT_RANDOM_20_PLUS_CHARACTER_KEY
+```
 
-# FrostTrack | Next.js + Vercel + Neon PostgreSQL
+4. Create or update your manager account in Neon:
 
-Full-stack live classroom-demo application for **Arduino Mega 2560 Smart Meat Refrigerator**.
+```bash
+npm run manager:create
+```
 
-- Frontend: **Next.js App Router + React + Redux Toolkit**
-- Backend: **Next.js Route Handlers (Node.js) on Vercel**
-- Persistent database: **Neon PostgreSQL** (runs separately, connected to Vercel)
-- Data: Chicken, Beef, Mutton, Keema (Mince)
-- Features: 4 inventory cards, temperature warning >4°C, low-stock alert, simulator, purchase-order approval, mark received, history, simple protected manager dashboard
-- Hardware example: Mega + HX711 x4 + DS18B20 x4 + W5500 Ethernet + local HTTP→HTTPS gateway
+5. Run and test locally:
 
-## Architecture
+```bash
+npm run dev
+npm test
+```
+
+Open http://localhost:3000 and log in with the manager email/password.
+
+## Deploy to Vercel
+
+- Push the **contents of this FrostTrack folder** to the connected GitHub repository.
+- Vercel framework **Next.js**; project root is this folder. `npm run build` is the build command.
+- Add `DATABASE_URL`, `SESSION_SECRET`, and `DEVICE_API_KEY` under **Vercel → Project → Settings → Environment Variables** (Production) and redeploy.
+- **Do not** set `MANAGER_PASSWORD`: manager credentials are held in the `managers` database table.
+- Frontend and `/api/*` routes are deployed in the **same Vercel app**. PostgreSQL stays in Neon, not inside Vercel.
+
+## Main folders
 
 ```text
-Physical setup:                     Web/cloud:
-Load cells x4 -> HX711 x4 --\       ┌─ Vercel Next.js API (/api/telemetry) ── Neon PostgreSQL
-DS18B20 x4 ----------------> Mega -> W5500 -> Ethernet LAN gateway -> HTTPS ────┘
-                                   └─ Vercel Next.js dashboard + Redux <- API
-                                      Manager → approve → Purchase Order
-
-Live classroom demo (no hardware needed):
-Dashboard "Simulate reading" → POST /api/demo/update → SAME PostgreSQL → dashboard refresh (5 s)
+app/          Next.js UI and backend API route handlers
+components/   React context/provider wiring
+lib/          Database, auth, inventory, configuration, order rules
+store/        Redux store
+sql/          Fresh schema and safe production migrations
+scripts/      One-time manager creation script
+arduino/      Arduino Mega + W5500 firmware sketch
+gateway/      Local Arduino HTTP → cloud HTTPS forwarding (optional hardware flow)
+tests/        Application unit tests
 ```
 
-> **Why a gateway?** Arduino Mega + W5500's regular `EthernetClient` does not perform HTTPS/TLS itself. Vercel public APIs use HTTPS. The provided `gateway/gateway.mjs` receives Arduino HTTP only on a trusted local LAN, adds a device API key, and forwards to the Vercel HTTPS endpoint. DO NOT expose local HTTP gateway directly to the public internet. A direct end-to-end encrypted Arduino-to-cloud connection requires different TLS-capable hardware/software design.
+## Backend endpoints
 
-## Fast Vercel deployment (single project for frontend + backend)
+| Route | Purpose |
+|---|---|
+| `POST /api/auth/login` | Manager authentication (email/password) |
+| `POST /api/auth/logout` | Sign out |
+| `GET /api/auth/me` | Verify logged-in session |
+| `GET /api/dashboard` | Current inventory, alerts, orders and history |
+| `POST /api/demo/update` | Simulate a weight/temperature reading |
+| `POST /api/telemetry` | IoT telemetry via authorized device key |
+| `POST /api/orders` | Approve/create purchase order and acknowledge low-stock alert |
+| `POST /api/orders/:id/cancel` | Cancel a placed order |
+| `POST /api/orders/:id/received` | Mark order received |
 
-1. Create a free PostgreSQL database at **https://neon.tech** (or Vercel Marketplace → Neon). Choose a region near your app's function region.
-2. Neon Console → **SQL Editor** → paste and run **`sql/schema.sql`**. This creates the four compartments, alerts, readings, orders and managers tables and starter records. If the first four tables already exist, only run `sql/manager_auth_migration.sql`.
-3. Copy the **pooled `DATABASE_URL`** from Neon Console → **Connect**. It will look like `postgresql://...-pooler.../neondb?sslmode=require`.
-4. Upload this folder to a new **GitHub repository** (do **not** commit `.env.local`), then open **https://vercel.com/new** → Import Git Repository.
-5. Framework: **Next.js** (auto-detected). Root Directory: project root. Build Command: `npm run build`. No separate backend deployment needed.
-6. Run `sql/manager_auth_migration.sql` on the existing Neon production branch.
-7. Run `npm run manager:create` locally (with `.env.local` set) to create your manager email/password securely in the database.
-8. Under Vercel **Project Settings → Environment Variables**, add these for **Production**:
-   - `DATABASE_URL` = pooled Neon connection string
-   - `SESSION_SECRET` = random **32+ characters**, e.g. run `openssl rand -hex 32`
-   - `DEVICE_API_KEY` = a *different* random **20+ characters**, e.g. `openssl rand -hex 32`
-9. Deploy. Open the generated `https://...vercel.app` URL. Sign in with the manager email and password created in step 7.
-8. Try **Simulate reading → Keema weight 2 kg → Send reading → Approve order**. Go to Purchase Orders to see the approved order saved in Neon.
+## Physical hardware note
 
-**Deployment result:** The dashboard is hosted on `https://YOUR-PROJECT.vercel.app` and the backend is already at `https://YOUR-PROJECT.vercel.app/api/*`. Neon PostgreSQL is not hosted inside Vercel itself.
+The Arduino sketch is an example for calibrated physical hardware, not proof of verified end-to-end IoT deployment. Arduino Mega + W5500 commonly uses plain HTTP on a local LAN; the `gateway/gateway.mjs` process can forward readings via HTTPS to Vercel. Run that gateway on a laptop/Raspberry Pi on the same trusted LAN as the Arduino. Protect local HTTP access and never put device/database secrets in browser code.
 
-## Run locally
+Wiring: HX711 Chicken D22/D23, Beef D24/D25, Mutton D26/D27, Keema D28/D29; temperatures D30–D33; warning LED D34; W5500 MISO D50, MOSI D51, SCK D52 and CS D10 (depending on module). Confirm board power/voltage compatibility and calibrate load cells.
 
-```bash
-npm install
-cp .env.example .env.local
-# Fill .env.local, and run sql/schema.sql in Neon before starting
-npm run dev
-```
+## Validation
 
-Open `http://localhost:3000` and login using your Neon manager email and password.
-
-> DO NOT open the app with plain HTML file mode; this is a Next.js server + database app. `npm install` needs working internet access for dependencies.
-
-## Live classroom demonstration without hardware
-
-1. Open your deployed Vercel website and login.
-2. Dashboard shows initial readings for four compartments (seed data).
-3. Press **Simulate reading** on Chicken or Keema. Set weight **2 kg** and temperature **2.3°C**. Submit.
-4. PostgreSQL is updated through `/api/demo/update`, and dashboard polls `/api/dashboard` every **5 seconds** (this is near-real-time polling, *not* WebSockets or SSE).
-5. A low-stock alert appears. Approve an order and open Purchase Orders. Order quantity = capacity − current stock (25 − 2 = 23 kg for Keema).
-6. Try temperature **8°C** to trigger a temperature alert. Set it back to **2.5°C** to resolve it.
-7. Press **Mark received** to close a purchase order. This does not automatically change measured weight; only a new sensor reading should change inventory. No supplier order is transmitted by this prototype.
-
-## API endpoints
-
-| Endpoint | Method | Access | Purpose |
-|---|---|---|---|
-| `/api/auth/login` | POST | Manager email + password | Sign in; sets signed HTTP-only cookie |
-| `/api/auth/logout` | POST | Browser | Sign out |
-| `/api/auth/me` | GET | Browser | Check active session |
-| `/api/dashboard` | GET | Manager session | Get compartments, alerts, orders, history |
-| `/api/demo/update` | POST | Manager session | Inject simulated sensor reading |
-| `/api/telemetry` | POST | `x-device-key` header | Arduino/gateway data ingest |
-| `/api/orders` | POST | Manager session | Approve and create purchase order |
-| `/api/orders/:id/received` | POST | Manager session | Mark delivery received |
-| `/api/orders/:id/cancel` | POST | Manager session | Cancel a placed order; optional reason |
-
-Example telemetry request (run in a terminal; avoid storing real secrets in shell history):
-
-```bash
-curl -X POST https://YOUR-PROJECT.vercel.app/api/telemetry \
-  -H "Content-Type: application/json" \
-  -H "x-device-key: YOUR_DEVICE_API_KEY" \
-  -d '{"deviceId":"mega-01","readings":[{"compartment":"chicken","weightKg":8.5,"temperatureC":2.3},{"compartment":"beef","weightKg":11.2,"temperatureC":2.6},{"compartment":"mutton","weightKg":9,"temperatureC":3.1},{"compartment":"mince","weightKg":3,"temperatureC":2.5}]}'
-```
-
-This request should return `{ "ok": true, "results": [...] }`, and manager dashboard will reflect new values after its next refresh.
-
-## Arduino wiring / operation
-
-`arduino/FrostTrack_Mega_W5500.ino` is a **physical hardware sketch example**, with these Arduino Mega digital pins:
-
-- HX711 DT/SCK: Chicken **22/23**, Beef **24/25**, Mutton **26/27**, Keema **28/29**.
-- DS18B20 DQ: Chicken **30**, Beef **31**, Mutton **32**, Keema **33**. Each DATA line needs **4.7kΩ pull-up to the sensor supply**, plus common ground.
-- Warning LED: **D34** (use current-limiting resistor).
-- W5500 SPI: Mega **MISO D50**, **MOSI D51**, **SCK D52** and shield **CS D10** (confirm breakout/shield pinout; other W5500 boards may use a different CS). Keep D53 configured OUTPUT for SPI master mode.
-- All peripherals require compatible regulated power with sufficient current capacity; some W5500 modules are **3.3V-only**, while 5V-compatible shields contain their own regulators. Never assume all W5500 modules accept 5V logic directly.
-
-Install Arduino libraries: **HX711 (bogde)**, **OneWire**, **DallasTemperature**, and **Ethernet**. Change `gatewayHost` in the `.ino` to your local gateway IP, connect LAN and power, and calibrate your real sensors individually using known weights. **420 is a placeholder calibration factor**, not a guaranteed real measurement. Tare with the empty tray. Wokwi's old HX711-only demo can still demonstrate simulated sensors separately; do not claim W5500 network integration is already simulated.
-
-### Local secure forwarding gateway
-
-Run the gateway on a laptop/Raspberry Pi connected to the same trusted router as Arduino:
-
-```bash
-# Bash / macOS / Linux
-export CLOUD_API_URL='https://YOUR-PROJECT.vercel.app'
-export DEVICE_API_KEY='YOUR_DEVICE_API_KEY'
-node gateway/gateway.mjs
-```
-
-Windows PowerShell:
-
-```powershell
-$env:CLOUD_API_URL='https://YOUR-PROJECT.vercel.app'
-$env:DEVICE_API_KEY='YOUR_DEVICE_API_KEY'
-node gateway/gateway.mjs
-```
-
-Configure Arduino `gatewayHost` to the host's **LAN IP** (e.g. `192.168.1.20`), using local port **8787**. Ensure local firewall allows this **only on trusted LAN**. Public network traffic from gateway to Vercel is HTTPS. No physical hardware/gateway network test was performed in the creation environment.
-
-## Security and scope
-
-- Manager actions: scrypt-hashed credentials in Neon, HMAC-signed HTTP-only SameSite=Strict session cookies.
-- Device ingestion: `x-device-key` secret on the **HTTPS** Vercel endpoint, kept in gateway environment only.
-- Input validation, constrained supported compartments, parameterized SQL and database unique indexes prevent accidental duplicate pending purchase orders and alerts.
-- Neon connection string is **server-only**; never use `NEXT_PUBLIC_DATABASE_URL`.
-- The code is suitable for a university demo. For public production, add proper user management, rate limiting, audit logging, request signing/replay protection, role-based permissions, service monitoring, and security reviews.
-- **The gateway's local HTTP leg is not encrypted.** Prefer an isolated wired network or a TLS-capable MCU design if that threat matters.
-- HTTPS is enforced on Vercel browser-to-API connections, not magically provided by `EthernetClient` on the Arduino.
-- This prototype is **not a certified food-safety system**; it monitors temperature but cannot prove meat freshness/expiry.
-- PostgreSQL, Vercel, Neon accounts and live deployment require your account setup. No public app URL has been deployed by this package.
+`npm test` checks the existing Node test suite. A successful test run does **not** prove live Neon connectivity or deployment; verify database migrations and dashboard behavior on your Vercel site separately. Purchase orders are recorded in PostgreSQL but not automatically sent to external suppliers.

@@ -18,14 +18,31 @@ export async function POST(request, { params }) {
     const body = await safeJson(request);
     const reason = normalizeCancellationReason(body.reason);
 
-    // Atomic and concurrency-safe: only an active placed order can be cancelled.
-    // A cancelled order remains in history; the existing unique "placed" index
-    // automatically permits a new reorder when inventory is still below threshold.
+    // Cancel the existing order and re-open a low-stock alert immediately if
+    // the latest measured stock remains below threshold. Both actions are
+    // performed atomically. The order history is preserved.
     const rows = await db()`
-      UPDATE orders
-      SET status='cancelled', cancelled_at=now(), cancellation_reason=${reason}
-      WHERE id=${id} AND status='placed'
-      RETURNING id, compartment_code, status, cancelled_at, cancellation_reason
+      WITH cancelled_order AS (
+        UPDATE orders
+        SET status='cancelled',cancelled_at=now(),cancellation_reason=${reason}
+        WHERE id=${id} AND status='placed'
+        RETURNING id,compartment_code,status,cancelled_at,cancellation_reason
+      ), reopened_alert AS (
+        INSERT INTO alerts(compartment_code,alert_type,message)
+        SELECT c.code,'low_stock',c.label || ' stock is below threshold. Refill needed.'
+        FROM compartments c
+        JOIN cancelled_order co ON co.compartment_code=c.code
+        WHERE c.weight_kg <= c.threshold_kg
+          AND NOT EXISTS (
+            SELECT 1 FROM orders o
+            WHERE o.compartment_code=c.code AND o.status='placed' AND o.id<>co.id
+          )
+        ON CONFLICT (compartment_code,alert_type) WHERE status='open' DO NOTHING
+        RETURNING id
+      )
+      SELECT co.id,co.compartment_code,co.status,co.cancelled_at,co.cancellation_reason
+      FROM cancelled_order co
+      CROSS JOIN (SELECT COUNT(*) AS reopened_count FROM reopened_alert) reopened
     `;
 
     if (!rows.length) {
