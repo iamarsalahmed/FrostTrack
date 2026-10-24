@@ -90,3 +90,77 @@
    but they no longer display a new-action warning while a PO is placed. */
 .comp-card.comp-pending { border-color:#c2d6fa; }
 .card-attention.ordered { background:#edf4ff; color:#24477b; }
+
+
+/* Mobile responsiveness improvements */
+.main-content{min-width:0;}
+.comp-grid,.metrics,.lower-grid,.table-scroll,.panel,.content-area,.page-intro,.section-title,.card-actions,.alert-overview,.topbar,.sidebar nav{min-width:0;}
+.card-weight,.card-readings,.stock-line,.alert-copy,.order-right{min-width:0;}
+.card-weight b,.metric-value,h1,h2,h3{overflow-wrap:anywhere;}
+
+@media(max-width:760px){
+  .app-shell{display:block;min-height:100vh;}
+  .sidebar{width:100%;height:auto;padding:10px 12px;border-right:0;border-bottom:1px solid #dfe7ef;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:30;overflow-x:auto;overflow-y:hidden;white-space:nowrap;background:#0e1a2d;}
+  .brand{padding:0;min-width:auto;flex-shrink:0;}
+  .brand strong,.brand small,.sidebar-heading,.device-tile{display:none;}
+  .sidebar nav{display:flex;align-items:center;gap:8px;flex:1;overflow-x:auto;padding-bottom:0;}
+  .sidebar nav::-webkit-scrollbar{display:none;}
+  .nav-item{font-size:12px;justify-content:center;padding:10px 12px;border-radius:12px;min-width:max-content;}
+  .nav-item .ico{font-size:16px;}
+  .nav-item .nav-count{display:inline-flex;}
+  .sidebar-bottom{display:flex;align-items:center;gap:8px;margin:0 0 0 auto;flex-shrink:0;}
+  .sidebar-bottom .nav-item{font-size:12px;padding:10px 12px;}
+  .main-content{width:100%;min-width:0;}
+  .topbar{height:auto;min-height:64px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:10px;}
+  .breadcrumbs{flex:1 1 180px;white-space:normal;line-height:1.4;}
+  .top-actions{width:100%;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  .top-actions .btn{flex:1 1 auto;justify-content:center;min-width:0;}
+  .live-label{display:inline;}
+  .content-area{padding:16px 12px 24px;min-width:0;}
+  .page-intro{display:grid;gap:12px;}
+  .page-intro h1{font-size:20px;line-height:1.15;}
+  .page-intro .date-chip{justify-self:start;max-width:100%;}
+  .alert-bar{align-items:flex-start;flex-wrap:wrap;gap:8px;}
+  .alert-bar button{margin-left:0;}
+  .alert-overview,.all-clear{display:grid;grid-template-columns:40px 1fr;align-items:start;gap:12px;padding:14px;}
+  .alert-overview>div,.all-clear>div{min-width:0;}
+  .alert-overview .btn{grid-column:1 / -1;margin-left:0;width:100%;justify-content:center;}
+  .metrics,.comp-grid,.lower-grid{grid-template-columns:1fr;}
+  .metric,.comp-card,.panel{min-width:0;}
+  .section-title{display:grid;gap:8px;}
+  .section-title .small-muted{margin-top:0;}
+  .card-top{align-items:flex-start;gap:10px;}
+  .card-statuses{justify-content:flex-start;}
+  .card-actions{display:grid;grid-template-columns:1fr;gap:8px;}
+  .card-actions .btn{width:100%;justify-content:center;}
+  .card-weight{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;}
+  .stock-line,.card-readings{gap:10px;}
+  .alert-row{display:grid;grid-template-columns:40px 1fr;gap:12px;}
+  .alert-row small{grid-column:2;justify-self:start;margin-left:0;padding-top:0;}
+  .warn-icon{height:40px;width:40px;}
+  .panel-head{display:grid;gap:8px;align-items:start;}
+  .order-row{display:grid;gap:8px;}
+  .order-right{justify-content:space-between;}
+  .order-filter-row{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;}
+  .filter-chip{white-space:nowrap;}
+  .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  table{min-width:720px;}
+  .orders-panel,.table-panel{padding:14px;}
+  .cancel-summary{grid-template-columns:1fr;}
+  .modal-buttons{flex-direction:column;}
+  .modal-buttons .btn{width:100%;justify-content:center;}
+  .content-area footer{display:grid;gap:8px;}
+  .content-area footer span{text-align:left;margin-top:0;}
+}
+
+@media(max-width:420px){
+  .sidebar{padding:8px 10px;gap:8px;}
+  .brand-badge{width:34px;height:34px;font-size:18px;}
+  .nav-item,.sidebar-bottom .nav-item{padding:9px 10px;font-size:11px;}
+  .topbar{padding:10px 12px;}
+  .content-area{padding:14px 10px 22px;}
+  .page-intro h1{font-size:18px;}
+  .metric-value{font-size:32px;}
+  .card-weight b{font-size:26px;}
+  .alert-overview strong,.all-clear strong{font-size:13px;}
+}
